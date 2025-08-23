@@ -1,15 +1,18 @@
 package com.vipinSpring6.security.service;
 
 import com.vipinSpring6.security.entity.User;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 @Service
 public class JwtService {
@@ -43,5 +46,40 @@ public class JwtService {
     }
 
 
+    public String extractUserName(String token) {
+        return extractClaims(token, Claims::getSubject);// yaha token means userName hai and yha claims se subject milega
+    }
 
+
+    private <T> T extractClaims(String token, Function<Claims,T> claimsResolver) {
+        Claims claims = extractClaims(token);// here will get all claims
+        return claimsResolver.apply(claims);
+
+    }
+
+    private Claims extractClaims(String token) {// this return claims || get claims from the token
+        return Jwts
+                .parser()
+                .verifyWith(generateKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+
+    }
+
+    public boolean isTokenValid(String token, UserDetails userDetails) {// we need to get the username from the token
+        // and match it from the userdetails and also check that the token is expired or not  usernames
+
+        final String userName = extractUserName(token);// will get the userName from this
+
+        return (userName.equals(userDetails.getUsername()) && !isTokenExpire(token));// checking ussername is same and checking the token is valid or not
+    }
+
+    private boolean isTokenExpire(String token) {// for check expire need to extract the expiration time
+        return extractExpiration(token).before(new Date());// get expiratioon date and time
+    }
+
+    private Date extractExpiration(String token) {// if expiration date&time is more than its time so its expired
+        return extractClaims(token, Claims::getExpiration);
+    }
 }
